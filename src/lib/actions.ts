@@ -21,12 +21,17 @@ export async function registerUser(input: unknown) {
   }
 
   const passwordHash = await hash(parsed.data.password, 12);
+  const superAdminEmail = process.env.SUPER_ADMIN?.trim().toLowerCase();
+  const isSuperAdmin = Boolean(superAdminEmail && parsed.data.email.toLowerCase() === superAdminEmail);
   await User.create({
     name: parsed.data.name,
     email: parsed.data.email.toLowerCase(),
     password: passwordHash,
-    role: parsed.data.role,
+    role: isSuperAdmin ? "admin" : "analyst",
+    isApproved: isSuperAdmin,
+    approvedAt: isSuperAdmin ? new Date() : undefined,
+    approvedBy: isSuperAdmin ? "system" : undefined,
   });
 
-  return { success: true };
+  return { success: true, requiresApproval: !isSuperAdmin };
 }

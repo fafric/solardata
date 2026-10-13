@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Database, LayoutTemplate, LogOut, ShieldCheck, Upload } from "lucide-react";
+import { BarChart3, Database, LayoutTemplate, LogOut, ShieldCheck, Upload, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const navItems = [
@@ -11,7 +11,9 @@ const navItems = [
   { href: "/records", label: "Records", icon: Database },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
+  const items = isAdmin ? [...navItems, { href: "/admin", label: "Manage access", icon: Users }] : navItems;
+
   return (
     <aside className="flex min-h-screen w-72 flex-col border-r border-slate-200 bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 px-6 py-5">
@@ -20,7 +22,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-2 px-4 py-6">
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {items.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

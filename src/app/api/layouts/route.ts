@@ -1,29 +1,23 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { layoutSchema } from "@/lib/validators";
 import HeaderLayout from "@/models/HeaderLayout";
 
 export async function GET() {
-  const session = await auth();
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
 
   await connectDB();
-  const layouts = await HeaderLayout.find({ owner: session.user.id }).sort({ createdAt: -1 }).lean();
+  const layouts = await HeaderLayout.find({ owner: access.userId }).sort({ createdAt: -1 }).lean();
 
   return NextResponse.json({ layouts });
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
 
   const payload = await request.json();
   const parsed = layoutSchema.safeParse(payload);
@@ -36,7 +30,7 @@ export async function POST(request: Request) {
   const layout = await HeaderLayout.create({
     name: parsed.data.name,
     description: parsed.data.description,
-    owner: session.user.id,
+    owner: access.userId,
     fields: parsed.data.fields,
     signature: parsed.data.fields.map((field) => field.key),
   });

@@ -10,5 +10,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return NextResponse.json({ success: true, requiresApproval: result.requiresApproval }, { status: 201 });
 }

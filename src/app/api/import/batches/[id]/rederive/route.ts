@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { applyPeriodFields, isValidPeriodSource } from "@/lib/date-period";
 import { refreshImportPeriods } from "@/lib/period-aggregation";
@@ -10,8 +10,8 @@ import ImportBatch from "@/models/ImportBatch";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
   const { id } = await context.params;
   const payload = await request.json() as {
     periodSource?: {
@@ -27,7 +27,7 @@ export async function POST(request: Request, context: RouteContext) {
   const source = payload.periodSource;
 
   await connectDB();
-  const batch = await ImportBatch.findOne({ _id: id, owner: session.user.id });
+  const batch = await ImportBatch.findOne({ _id: id, owner: access.userId });
   if (!batch) return NextResponse.json({ error: "Import batch not found." }, { status: 404 });
   if (source.mode === "none" ? source.headerKey !== "none" : !batch.sourceHeaders.includes(source.headerKey)) {
     return NextResponse.json({ error: "The selected period date is not a source column." }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const rows = batch.sourceRows as Record<string, string>[];
   const mappings = batch.mappings instanceof Map ? Object.fromEntries(batch.mappings) : batch.mappings ?? {};
-  const customRows = await CustomData.find({ owner: session.user.id, batchId: id }).sort({ _id: 1 });
+  const customRows = await CustomData.find({ owner: access.userId, batchId: id }).sort({ _id: 1 });
   const updates = rows.map((row, index) => {
     const customRow = customRows[index];
     if (!customRow) return null;
@@ -57,6 +57,6 @@ export async function POST(request: Request, context: RouteContext) {
 
   batch.periodSource = source;
   await batch.save();
-  const periods = await refreshImportPeriods(session.user.id);
+  const periods = await refreshImportPeriods(access.userId);
   return NextResponse.json({ updatedRows: updates.length, periodCount: periods.length });
 }

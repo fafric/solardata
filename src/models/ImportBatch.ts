@@ -42,7 +42,7 @@ const ImportBatchSchema = new mongoose.Schema<IImportBatch>(
     preview: [{ type: Object }],
     sourceHeaders: [{ type: String }],
     sourceRows: [{ type: mongoose.Schema.Types.Mixed }],
-    mappings: { type: Map, of: String, default: {} },
+    mappings: { type: mongoose.Schema.Types.Mixed, default: {} },
     fileMonthHeaderKey: { type: String },
     fileYearHeaderKey: { type: String },
     remember: { type: Boolean, default: false },

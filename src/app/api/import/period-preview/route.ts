@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { makePeriodValues, parseDate, selectDateValue } from "@/lib/date-period";
 import ImportBatch from "@/models/ImportBatch";
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
 
   const payload = await request.json() as {
     batchId?: string;
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   await connectDB();
-  const batch = await ImportBatch.findOne({ _id: payload.batchId, owner: session.user.id }).lean<{
+  const batch = await ImportBatch.findOne({ _id: payload.batchId, owner: access.userId }).lean<{
     sourceHeaders: string[];
     sourceRows: Record<string, string>[];
   } | null>();

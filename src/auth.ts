@@ -41,11 +41,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        const superAdminEmail = process.env.SUPER_ADMIN?.trim().toLowerCase();
+        const isSuperAdmin = Boolean(superAdminEmail && account.email.toLowerCase() === superAdminEmail);
+        if (!account.isApproved && !isSuperAdmin) {
+          return null;
+        }
+
         return {
           id: String(account._id),
           email: account.email,
           name: account.name,
-          role: account.role || "analyst",
+          role: isSuperAdmin ? "admin" : account.role || "analyst",
+          isApproved: true,
         };
       },
     }),
@@ -55,6 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.isApproved = user.isApproved;
       }
 
       return token;
@@ -63,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = (token.role as string) || "analyst";
+        session.user.isApproved = token.isApproved === true;
       }
 
       return session;

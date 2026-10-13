@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { applyPeriodFields, isValidPeriodSource } from "@/lib/date-period";
 import { refreshImportPeriods } from "@/lib/period-aggregation";
@@ -12,8 +12,8 @@ import ImportRecord from "@/models/ImportRecord";
 import ImportProfile from "@/models/ImportProfile";
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
 
   const payload = await request.json() as {
     batchId?: string;
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   await connectDB();
-  const batch = await ImportBatch.findOne({ _id: payload.batchId, owner: session.user.id });
+  const batch = await ImportBatch.findOne({ _id: payload.batchId, owner: access.userId });
   if (!batch) return NextResponse.json({ error: "Import batch not found." }, { status: 404 });
   if (batch.status === "completed") return NextResponse.json({ error: "This batch has already been committed." }, { status: 409 });
   if (periodSource.mode === "none" ? periodSource.headerKey !== "none" : !batch.sourceHeaders.includes(periodSource.headerKey)) {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The file Month/Year mapping is not a source column." }, { status: 400 });
   }
 
-  const owner = session.user.id;
+  const owner = access.userId;
   const rows = batch.sourceRows as Record<string, string>[];
   const headers = batch.sourceHeaders as string[];
   const mappings = payload.mappings;
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     }
   }
 
-  batch.mappings = new Map(Object.entries(mappings));
+  batch.mappings = mappings;
   batch.fileMonthHeaderKey = payload.fileMonthHeaderKey;
   batch.fileYearHeaderKey = payload.fileYearHeaderKey;
   batch.periodSource = periodSource;

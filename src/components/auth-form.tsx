@@ -29,6 +29,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           const payload = (await response.json()) as { error?: string };
           throw new Error(payload.error || "Unable to create account.");
         }
+
+        const result = (await response.json()) as { requiresApproval?: boolean };
+        if (result.requiresApproval) {
+          router.replace("/pending-approval");
+          return;
+        }
       }
 
       const result = await signIn("credentials", {

@@ -5,6 +5,9 @@ export interface IUser {
   email: string;
   password: string;
   role: "admin" | "analyst" | "reviewer";
+  isApproved: boolean;
+  approvedAt?: Date;
+  approvedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +18,9 @@ const UserSchema = new mongoose.Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["admin", "analyst", "reviewer"], default: "analyst" },
+    isApproved: { type: Boolean, default: false, index: true },
+    approvedAt: { type: Date },
+    approvedBy: { type: String },
   },
   { timestamps: true },
 );

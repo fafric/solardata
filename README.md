@@ -36,6 +36,7 @@ A production-ready Next.js + TypeScript government import data management platfo
    ```bash
    AUTH_SECRET=replace-with-a-long-random-secret
    MONGODB_URI=mongodb://127.0.0.1:27017/solardata
+   SUPER_ADMIN=admin@example.com
    ```
 
 4. Run the app:
@@ -51,6 +52,7 @@ A production-ready Next.js + TypeScript government import data management platfo
 - Landing page: `/`
 - Sign in: `/login`
 - Registration: `/register`
+- Admin access management: `/admin` (only the account matching `SUPER_ADMIN`)
 - Dashboard: `/dashboard`
 - CSV intake: `/imports`
 - Layout registry: `/layouts`
@@ -58,6 +60,6 @@ A production-ready Next.js + TypeScript government import data management platfo
 
 ## Notes
 
-- Protected routes are guarded by middleware and an authenticated session.
+- Protected routes and APIs require an authenticated, admin-approved account. Set `SUPER_ADMIN` to the administrator's email, then register that email to bootstrap the approved admin account. New accounts remain pending until approved from `/admin`.
 - The upload workflow creates an `ImportBatch` record and persists matched rows in `ImportRecord` collections.
 - The schema and normalization layer is designed to support real import reconciliation workflows, with room to extend validation rules and review states as the product evolves.

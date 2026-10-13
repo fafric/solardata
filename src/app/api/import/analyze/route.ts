@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import Papa from "papaparse";
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { buildLayoutSignature, choosePeriodSource, detectDateCandidates, formatPeriodDate, parseDate } from "@/lib/date-period";
 import { normalizeHeader } from "@/lib/normalize";
@@ -22,8 +22,9 @@ const DEFAULT_FIELDS = [
 ];
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
+  const owner = access.userId;
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -43,11 +44,11 @@ export async function POST(request: Request) {
   if (!headers.length) return NextResponse.json({ error: "The CSV has no header row." }, { status: 400 });
   await connectDB();
   const [layout, registryHeaders] = await Promise.all([
-    HeaderLayout.findOne({ owner: session.user.id }).sort({ createdAt: -1 }).lean<{
+    HeaderLayout.findOne({ owner }).sort({ createdAt: -1 }).lean<{
       _id: unknown;
       fields: IFieldDefinition[];
     } | null>(),
-    ensureSystemHeaders(session.user.id),
+    ensureSystemHeaders(owner),
   ]);
   const sourceFields: IFieldDefinition[] = Array.isArray(layout?.fields) && layout.fields.length
     ? layout.fields
@@ -101,13 +102,13 @@ export async function POST(request: Request) {
   });
   const layoutSignature = buildLayoutSignature(headers);
   const layoutHash = createHash("sha256").update(layoutSignature).digest("hex");
-  const profile = await ImportProfile.findOne({ owner: session.user.id, layoutSignature: layoutHash }).lean<{
+  const profile = await ImportProfile.findOne({ owner, layoutSignature: layoutHash }).lean<{
     periodSourceHeaderKey: string;
     fallbackHeaderKey?: string;
     dayFirst: boolean;
   } | null>();
   const batch = await ImportBatch.create({
-    owner: session.user.id,
+    owner,
     fileName: file.name,
     status: "queued",
     totalRows: parsed.data.length,
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     summary: `Analyzed ${parsed.data.length} rows. Review field mappings and period date before committing.`,
   });
 
-  const savedHeaders = await Header.find({ owner: session.user.id }).sort({ system: 1, label: 1 }).lean();
+  const savedHeaders = await Header.find({ owner }).sort({ system: 1, label: 1 }).lean();
   return NextResponse.json({
     batchId: String(batch._id),
     fileName: file.name,

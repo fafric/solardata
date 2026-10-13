@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireApprovedAccess } from "@/lib/access";
 import { connectDB } from "@/lib/db";
 import { normalizeHeader } from "@/lib/normalize";
 import HeaderLayout from "@/models/HeaderLayout";
@@ -46,11 +46,8 @@ function buildRecordFromRow(row: Record<string, string>, layout: { key: string; 
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { access, response } = await requireApprovedAccess();
+  if (response) return response;
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -75,11 +72,14 @@ export async function POST(request: Request) {
   const normalizedHeaderMap = toNormalizedMap(headers);
 
   await connectDB();
-  const layout = await HeaderLayout.findOne({ owner: session.user.id }).sort({ createdAt: -1 }).lean<any | null>();
+  const layout = await HeaderLayout.findOne({ owner: access.userId }).sort({ createdAt: -1 }).lean<{
+    _id: unknown;
+    fields: { key: string; aliases: string[] }[];
+  } | null>();
   const activeLayout = Array.isArray(layout?.fields) && layout.fields.length ? layout.fields : DEFAULT_LAYOUT;
 
   const batch = await ImportBatch.create({
-    owner: session.user.id,
+    owner: access.userId,
     fileName: file.name,
     status: "processing",
     totalRows: parsed.data.length,
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   const rowsToCreate = parsed.data.slice(0, 25).map((row) => {
     const mappedRow = buildRecordFromRow(row, activeLayout);
     return {
-      owner: session.user.id,
+      owner: access.userId,
       batchId: String(batch._id),
       layoutId: layout ? String(layout._id) : undefined,
       row: mappedRow,
