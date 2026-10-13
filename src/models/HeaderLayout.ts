@@ -4,6 +4,9 @@ export interface IFieldDefinition {
   key: string;
   label: string;
   semanticType: string;
+  type?: string;
+  role?: string;
+  system?: boolean;
   aliases: string[];
 }
 
@@ -22,6 +25,9 @@ const FieldSchema = new mongoose.Schema(
     key: { type: String, required: true },
     label: { type: String, required: true },
     semanticType: { type: String, required: true },
+    type: { type: String },
+    role: { type: String },
+    system: { type: Boolean, default: false },
     aliases: [{ type: String }],
   },
   { _id: false },

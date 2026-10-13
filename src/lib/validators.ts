@@ -20,6 +20,8 @@ export const layoutSchema = z.object({
       key: z.string().min(1),
       label: z.string().min(1),
       semanticType: z.string().min(1),
+      type: z.string().optional(),
+      role: z.string().optional(),
       aliases: z.array(z.string()).default([]),
     }),
   ),
