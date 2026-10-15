@@ -20,6 +20,7 @@ type BatchOption = {
   id: string;
   fileName: string;
   sourceHeaders: string[];
+  canManage?: boolean;
   periodSource?: { headerKey: string; fallbackHeaderKey?: string; dayFirst: boolean; mode: "generated" | "file-columns" | "none" };
 };
 
@@ -123,10 +124,10 @@ export function RecordsTable({ records, batches, periods, years, initialFilters 
         </label>
       </div>
 
-      {batches.length > 0 && <details className="border-b border-slate-200 pb-4">
+      {batches.some((batch) => batch.canManage !== false) && <details className="border-b border-slate-200 pb-4">
         <summary className="cursor-pointer text-sm font-medium text-slate-700">Re-derive periods</summary>
         <div className="mt-3 space-y-3">
-          {batches.map((batch) => {
+          {batches.filter((batch) => batch.canManage !== false).map((batch) => {
             const choice = rederive[batch.id] ?? { headerKey: batch.periodSource?.headerKey ?? "none", fallbackHeaderKey: batch.periodSource?.fallbackHeaderKey ?? "", dayFirst: batch.periodSource?.dayFirst ?? true };
             return <div key={batch.id} className="flex flex-wrap items-end gap-2 text-sm">
               <span className="mr-auto font-medium text-slate-700">{batch.fileName}</span>

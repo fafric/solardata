@@ -16,6 +16,7 @@ type StoredCustomData = {
 type StoredImportRecord = { _id: unknown; batchId: string; row?: Record<string, string | number | boolean | null> };
 type StoredBatch = {
   _id: unknown;
+  owner: string;
   fileName: string;
   sourceHeaders?: string[];
   periodSource?: { headerKey: string; fallbackHeaderKey?: string; dayFirst: boolean; mode: "generated" | "file-columns" | "none" };
@@ -32,11 +33,28 @@ export default async function RecordsPage({ searchParams }: PageProps) {
 
   await connectDB();
   const [records, legacyRecords, batches, periods, years, params] = await Promise.all([
-    CustomData.find({ owner: userId }).sort({ _id: -1 }).limit(5000).lean<StoredCustomData[]>(),
-    ImportRecord.find({ owner: userId }).sort({ _id: -1 }).limit(5000).lean<StoredImportRecord[]>(),
-    ImportBatch.find({ owner: userId, status: "completed" }).sort({ createdAt: -1 }).limit(50).lean<StoredBatch[]>(),
-    ImportPeriod.find({ owner: userId }).sort({ periodKey: -1 }).lean<StoredPeriod[]>(),
-    CustomData.distinct("derived.periodYear", { owner: userId, "derived.periodYear": { $ne: null } }),
+    CustomData.find({}).sort({ _id: -1 }).limit(5000).lean<StoredCustomData[]>(),
+    ImportRecord.find({}).sort({ _id: -1 }).limit(5000).lean<StoredImportRecord[]>(),
+    ImportBatch.find({ status: "completed" }).sort({ createdAt: -1 }).limit(50).lean<StoredBatch[]>(),
+    ImportPeriod.aggregate<StoredPeriod>([
+      {
+        $group: {
+          _id: "$periodKey",
+          periodLabel: { $first: "$periodLabel" },
+          count: { $sum: "$count" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          periodKey: "$_id",
+          periodLabel: 1,
+          count: 1,
+        },
+      },
+      { $sort: { periodKey: -1 } },
+    ]),
+    CustomData.distinct("derived.periodYear", { "derived.periodYear": { $ne: null } }),
     searchParams,
   ]);
   const serializedBatches = batches.map((batch) => ({
@@ -44,6 +62,7 @@ export default async function RecordsPage({ searchParams }: PageProps) {
     fileName: batch.fileName,
     sourceHeaders: batch.sourceHeaders ?? [],
     periodSource: batch.periodSource,
+    canManage: batch.owner === userId,
   }));
   const batchById = new Map(serializedBatches.map((batch) => [batch.id, batch]));
   const representedBatchIds = new Set(records.map((record) => String(record.batchId)));

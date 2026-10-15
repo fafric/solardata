@@ -18,9 +18,9 @@ export default async function DashboardPage() {
   await connectDB();
   const [layoutCount, batchCount, recordCount, recentBatch] = await Promise.all([
     HeaderLayout.countDocuments({ owner: userId }),
-    ImportBatch.countDocuments({ owner: userId }),
-    ImportRecord.countDocuments({ owner: userId }),
-    ImportBatch.findOne({ owner: userId }).sort({ createdAt: -1 }).lean<any | null>(),
+    ImportBatch.countDocuments(),
+    ImportRecord.countDocuments(),
+    ImportBatch.findOne().sort({ createdAt: -1 }).lean<{ fileName: string } | null>(),
   ]);
 
   const matchedRatio = recordCount > 0 ? Math.min(99.5, 90 + Math.round((recordCount / Math.max(batchCount || 1, 1)) * 10)) / 100 : 0.96;

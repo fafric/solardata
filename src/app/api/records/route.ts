@@ -5,11 +5,11 @@ import { connectDB } from "@/lib/db";
 import ImportRecord from "@/models/ImportRecord";
 
 export async function GET() {
-  const { access, response } = await requireApprovedAccess();
+  const { response } = await requireApprovedAccess();
   if (response) return response;
 
   await connectDB();
-  const records = await ImportRecord.find({ owner: access.userId }).sort({ createdAt: -1 }).limit(25).lean();
+  const records = await ImportRecord.find({}).sort({ createdAt: -1 }).limit(25).lean();
 
   return NextResponse.json({ records });
 }
